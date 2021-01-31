@@ -11,7 +11,7 @@ services:
     depends_on:
       - mongo
     environment:
-      - DATABASE_URL=mongodb://mongo:27017/expressmongo
+      - DATABASE_URL=mongodb://mongo:27017/game-of-three
   mongo:
     container_name: mongo
     image: mongo

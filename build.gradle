@@ -23,11 +23,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-websocket:2.4.2'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test:2.4.2'
 
-	implementation 'org.mapstruct:mapstruct:${mapstructVersion}'
+	implementation "org.mapstruct:mapstruct:${mapstructVersion}"
 	implementation 'com.google.guava:guava:30.1-jre'
 	implementation 'org.springdoc:springdoc-openapi-ui:1.5.3'
 
-	annotationProcessor 'org.mapstruct:mapstruct-processor:${mapstructVersion}'
+	annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 }
 
 test {
