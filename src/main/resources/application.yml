@@ -2,3 +2,8 @@ spring:
   data:
     mongodb:
       uri: ${DATABASE_URL}
+
+game-of-three:
+  divisor: ${DIVISOR}:3
+  winning-number: ${WINNING_NUMBER}:1
+  number-of-players: ${NUMBER_OF_PLAYERS}:2
