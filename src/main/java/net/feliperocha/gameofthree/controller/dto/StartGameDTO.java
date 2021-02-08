@@ -1,16 +1,16 @@
 package net.feliperocha.gameofthree.controller.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.springframework.stereotype.Service;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 @Getter
-@Service
+@AllArgsConstructor
 public class StartGameDTO {
     @NotBlank
-    private String name;
+    private final String name;
     @NotNull
-    private Boolean isPlayingAutomatically;
+    private final Boolean isPlayingAutomatically;
 }
