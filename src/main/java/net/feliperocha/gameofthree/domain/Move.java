@@ -5,24 +5,26 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
 public class Move {
-    public Move(MoveCommand command, Long playerId, Integer previousNumber) {
+    public Move(MoveCommand command, String playerId, Integer previousNumber) {
         this.command = command;
         this.playerId = playerId;
         this.previousNumber = previousNumber;
+        this.id = UUID.randomUUID().toString();
+        this.createdAt = LocalDateTime.now();
     }
 
     @Id
-    private Long id;
-    private Long playerId;
+    private String id;
+    private String playerId;
     private MoveCommand command;
     private Integer previousNumber;
     private Integer currentNumber;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
     public void calculateCurrentNumber(Integer divisor) {
         switch (this.command) {

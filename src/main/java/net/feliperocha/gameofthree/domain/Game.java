@@ -2,7 +2,7 @@ package net.feliperocha.gameofthree.domain;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.feliperocha.gameofthree.controller.dto.MoveDTO;
+import net.feliperocha.gameofthree.listener.dto.MoveDTO;
 import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
@@ -21,12 +21,13 @@ public class Game {
         this.status = WAITING_PLAYER;
         this.players = new ArrayList<>();
         this.moves = new ArrayList<>();
+        this.createdAt = LocalDateTime.now();
     }
 
     @Id
-    private Long id;
+    private String id;
     private GameStatus status;
-    private Optional<Long> winnerPlayerId;
+    private Optional<String> winnerPlayerId;
     private Integer initialNumber;
     private List<Move> moves;
     private List<Player> players;
@@ -60,18 +61,19 @@ public class Game {
         }
     }
 
-    public Player getPlayer(Long playerId) {
-        return this.getPlayers()
-                .stream()
-                .filter(player -> player.getId().equals(playerId))
-                .findFirst().orElseThrow();
-    }
-
     public Player getFirstPlayer() {
         return this.getPlayers()
                 .stream()
                 .filter(player -> !player.getStatus().equals(DISCONNECTED))
                 .min(comparing(Player::getCreatedAt))
+                .orElseThrow();
+    }
+
+    public Player getLastPlayer() {
+        return this.getPlayers()
+                .stream()
+                .filter(player -> !player.getStatus().equals(DISCONNECTED))
+                .max(comparing(Player::getCreatedAt))
                 .orElseThrow();
     }
 

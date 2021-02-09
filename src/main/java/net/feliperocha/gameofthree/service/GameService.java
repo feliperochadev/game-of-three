@@ -2,8 +2,8 @@ package net.feliperocha.gameofthree.service;
 
 import lombok.AllArgsConstructor;
 import net.feliperocha.gameofthree.configuration.GameConfig;
-import net.feliperocha.gameofthree.controller.dto.MoveDTO;
-import net.feliperocha.gameofthree.controller.dto.StartGameDTO;
+import net.feliperocha.gameofthree.listener.dto.MoveDTO;
+import net.feliperocha.gameofthree.listener.dto.StartGameDTO;
 import net.feliperocha.gameofthree.domain.*;
 import net.feliperocha.gameofthree.repository.GameRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -28,22 +28,21 @@ public class GameService {
     private static final String START_GAME_SUBSCRIBE_PATH = "/queue/subscribe/start";
     private static final String WAIT_SUBSCRIBE_PATH = "/queue/subscribe/wait";
     private static final String ROUND_SUBSCRIBE_PATH = "/queue/subscribe/round";
-    private static final String WIN_SUBSCRIBE_PATH = "/queue/subscribe/win";
+    private static final String WIN_SUBSCRIBE_PATH = "//queuesubscribe/win";
     private static final String LOSE_SUBSCRIBE_PATH = "/queue/subscribe/lose";
 
     public void startGame(StartGameDTO startGameDTO) {
         var game = gameRepository.findByStatus(WAITING_PLAYER).stream()
                 .filter(g -> g.getPlayers().size() < gameConfig.getNumberOfPlayers())
                 .min(comparing(Game::getCreatedAt)).orElse(new Game());
-        var player = new Player(startGameDTO.getName(), startGameDTO.getIsPlayingAutomatically());
-        game.getPlayers().add(player);
+        game.getPlayers().add(new Player(startGameDTO.getName(), startGameDTO.getIsPlayingAutomatically()));
         if (game.getPlayers().stream().filter(p -> p.getStatus().equals(WAITING)).count() == gameConfig.getNumberOfPlayers())
             game.startGame(getRandomNumber());
         game = gameRepository.save(game);
         if (game.getStatus().equals(RUNNING))
             notifyGameStartedForPlayers(game);
         else
-            notifyNewPlayer(game, player.getId());
+            notifyNewPlayer(game);
     }
 
     public void executeMove(MoveDTO moveDTO) {
@@ -66,16 +65,15 @@ public class GameService {
                         format("Game started! \n it's %s turn", starterPlayer.getName())));
     }
 
-    private void notifyNewPlayer(Game game, Long playerId) {
-        final var newPlayer  = game.getPlayer(playerId);
-        messagingTemplate.convertAndSendToUser(newPlayer.getId().toString(),
-                START_GAME_SUBSCRIBE_PATH + game.getId(), "Waiting for players...");
+    private void notifyNewPlayer(Game game) {
+        final var newPlayer  = game.getLastPlayer();
+        messagingTemplate.convertAndSend(
+                WAIT_SUBSCRIBE_PATH, "Waiting for players...");
         game.getPlayers()
                 .stream()
-                .filter(player -> !player.getId().equals(playerId)
+                .filter(player -> !player.getId().equals(newPlayer.getId())
                         && player.getStatus().equals(WAITING))
-                .forEach(currentPlayer -> messagingTemplate.convertAndSendToUser(currentPlayer.getId().toString(),
-                        WAIT_SUBSCRIBE_PATH + game.getId(),
+                .forEach(currentPlayer -> messagingTemplate.convertAndSend(WAIT_SUBSCRIBE_PATH,
                         format("Player %s joined", newPlayer.getName())));
     }
 

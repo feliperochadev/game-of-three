@@ -1,4 +1,4 @@
-package net.feliperocha.gameofthree.controller.dto;
+package net.feliperocha.gameofthree.listener.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,9 +10,9 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 public class MoveDTO {
     @NotNull
-    private final Long gameId;
+    private final String gameId;
     @NotNull
-    private final Long playerId;
+    private final String playerId;
     @NotNull
     private final MoveCommand command;
 }
