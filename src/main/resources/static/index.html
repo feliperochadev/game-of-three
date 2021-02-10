@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base href=".">
+    <title>Game of three</title>
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/main.css" rel="stylesheet">
+    <script src="assets/app.js"></script>
+    <script src="lib/stomp.min.js"></script>
+</head>
+<header>
+    <noscript><h2 style="color: #ff0000">Your browser doesn't support Javascript!
+        Please enable Javascript and reload this page!</h2></noscript>
+    <h2 align="center">Game of three</h2>
+</header>
+<body>
+<div id="main-content" class="container">
+    <div class="row">
+        <button id="disconnect" class="btn btn-danger" type="button" onclick="disconnect()">Disconnect</button>
+    </div>
+    <div class="row" id="connect-container">
+        <div class="col-md-6">
+            <form action="javascript:connect()">
+                <div class="form-group">
+                    <label for="name">Name:</label>
+                    <input class="form-control" name="name" id="name" type="text" required/>
+                </div>
+                <div class="form-group">
+                    <input class="form-check-input" name="play-automatically" id="play-automatically" type="checkbox" />
+                    <label for="play-automatically" class="custom-control-label">Play automatically? </label>
+                </div>
+                <div class="form-group">
+                    <button id="connect" class="btn btn-success" type="submit">Connect</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="row hide" id="play-container">
+        <div class="col-md-6">
+            <form action="javascript:connect()">
+                <div class="form-group">
+                    <label for="move">Select your move:</label>
+                    <select class="form-control" name="move" id="move">
+                        <option value="ADDITION">Addition</option>
+                        <option value="MAINTAIN">Maintain</option>
+                        <option value="SUBTRACTION">Subtraction</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button id="play" class="btn btn-info" type="submit">Play</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="row hide" id="game-log-container">
+        <div class="col-md-12">
+            <table id="messages-table" class="table table-striped">
+                <thead>
+                <tr>
+                    <th>Game log:</th>
+                </tr>
+                </thead>
+                <tbody id="game-log">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

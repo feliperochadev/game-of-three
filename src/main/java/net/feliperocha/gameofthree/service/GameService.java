@@ -57,14 +57,14 @@ public class GameService {
     private void notifyGameStartedForPlayers(Game game) {
         final var starterPlayer = game.getFirstPlayer();
         messagingTemplate.convertAndSend(
-                format("%s/%s", starterPlayer.getId(), START_GAME_SUBSCRIBE_PATH),
+                format("%s/%s", START_GAME_SUBSCRIBE_PATH, starterPlayer.getId()),
                 "Game started! \n it's your turn");
         game.getPlayers()
                 .stream()
                 .filter(player -> !player.getId().equals(starterPlayer.getId())
                         && player.getStatus().equals(PLAYING))
                 .forEach(currentPlayer -> messagingTemplate.convertAndSend(
-                        format("%s/%s",starterPlayer.getId(), WAIT_SUBSCRIBE_PATH),
+                        format("%s/%s", WAIT_SUBSCRIBE_PATH, currentPlayer.getId()),
                         format("Game started! \n it's %s turn", starterPlayer.getName())));
     }
 

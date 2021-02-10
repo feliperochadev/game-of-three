@@ -20,9 +20,9 @@ public class PlayerController {
     private final PlayerRepository playerRepository;
 
     @PostMapping("/player")
-    public ResponseEntity<String> createPlayer(@RequestBody @Valid CreatePlayerDTO createPlayerDTO) {
+    public ResponseEntity<Player> createPlayer(@RequestBody @Valid CreatePlayerDTO createPlayerDTO) {
         var player = new Player(createPlayerDTO.getName(), createPlayerDTO.getIsPlayingAutomatically());
         playerRepository.save(player);
-        return status(CREATED).body(player.getId());
+        return status(CREATED).body(player);
     }
 }
