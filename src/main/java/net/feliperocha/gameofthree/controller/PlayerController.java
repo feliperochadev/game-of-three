@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 
 import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.status;
 
 @RestController
@@ -26,7 +27,8 @@ public class PlayerController {
         return status(CREATED).body(player);
     }
 
-    @DeleteMapping("/player/{id}/disconnect")
+    @PatchMapping("/player/{id}/disconnect")
+    @ResponseStatus(NO_CONTENT)
     public void disconnect(@PathVariable String id, @RequestParam(value = "gameId") String gameId) {
         gameService.disconnectPlayer(id, gameId);
     }

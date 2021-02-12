@@ -142,7 +142,8 @@ public class GameService {
                 new GameMessageDTO(WAIT, game.getId(), format("It's %s turn", nextPlayer.getName()), currentNumber);
         game.getPlayers()
                 .stream()
-                .filter(currentPlayer -> !player.getId().equals(nextPlayer.getId()) && player.getStatus().equals(PLAYING))
+                .filter(currentPlayer -> !currentPlayer.getId().equals(nextPlayer.getId()) &&
+                        currentPlayer.getStatus().equals(PLAYING))
                 .forEach(currentPlayer -> messagingTemplate
                         .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
     }

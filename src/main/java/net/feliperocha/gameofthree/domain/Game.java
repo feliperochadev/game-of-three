@@ -7,6 +7,7 @@ import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
@@ -66,19 +67,23 @@ public class Game {
     }
 
     public Player getFirstPlayer() {
-        return this.getPlayers()
+        var players = this.getPlayers()
                 .stream()
                 .filter(player -> !player.getStatus().equals(PlayerStatus.DISCONNECTED))
-                .min(comparing(Player::getCreatedAt))
-                .orElseThrow();
+                .collect(Collectors.toList());
+        if (players.isEmpty())
+            throw new NoSuchElementException("No player available");
+        return players.get(0);
     }
 
     public Player getLastPlayer() {
-        return this.getPlayers()
+        var players = this.getPlayers()
                 .stream()
                 .filter(player -> !player.getStatus().equals(PlayerStatus.DISCONNECTED))
-                .max(comparing(Player::getCreatedAt))
-                .orElseThrow();
+                .collect(Collectors.toList());
+        if (players.isEmpty())
+            throw new NoSuchElementException("No player available");
+        return players.get(players.size()-1);
     }
 
     public Player getNextPlayer(Player player) {
