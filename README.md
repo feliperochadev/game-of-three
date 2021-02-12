@@ -31,5 +31,7 @@ The following variables should be set before running:
 2. Run docker-compose: `docker-compose up`
 3. Open browser on [localhost:8000](http://localhost:8000)
 
+It's also available on: [https://felipe-rocha-game-of-three.herokuapp.com](https://felipe-rocha-game-of-three.herokuapp.com)
+
 ### Running tests:
 * Run: `./gradlew test`
