@@ -2,6 +2,7 @@ package net.feliperocha.gameofthree.service;
 
 import lombok.AllArgsConstructor;
 import net.feliperocha.gameofthree.configuration.GameConfig;
+import net.feliperocha.gameofthree.listener.dto.GameMessageDTO;
 import net.feliperocha.gameofthree.listener.dto.MoveDTO;
 import net.feliperocha.gameofthree.domain.*;
 import net.feliperocha.gameofthree.repository.GameRepository;
@@ -14,9 +15,10 @@ import java.util.Random;
 import static java.lang.String.format;
 import static java.util.Comparator.comparing;
 import static net.feliperocha.gameofthree.domain.GameStatus.*;
+import static net.feliperocha.gameofthree.domain.PlayerStatus.*;
+import static net.feliperocha.gameofthree.domain.PlayerStatus.DISCONNECTED;
 import static net.feliperocha.gameofthree.domain.PlayerStatus.FINISHED;
-import static net.feliperocha.gameofthree.domain.PlayerStatus.PLAYING;
-import static net.feliperocha.gameofthree.domain.PlayerStatus.WAITING;
+import static net.feliperocha.gameofthree.listener.GameEvent.*;
 
 @Service
 @AllArgsConstructor
@@ -26,89 +28,137 @@ public class GameService {
     private final PlayerRepository playerRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    private static final String START_GAME_SUBSCRIBE_PATH = "/queue/start";
-    private static final String WAIT_SUBSCRIBE_PATH = "/queue/wait";
-    private static final String ROUND_SUBSCRIBE_PATH = "/queue/round";
-    private static final String WIN_SUBSCRIBE_PATH = "/queue/win";
-    private static final String LOSE_SUBSCRIBE_PATH = "/queue/lose";
+    private static final String PLAYER_SUBSCRIBE_PATH = "/queue/player/%s";
 
     public void connect(String playerId) {
         var player = playerRepository.findById(playerId).orElseThrow();
-        var game = gameRepository.findByStatus(WAITING_PLAYER).stream()
+        var game = gameRepository.findByStatus(WAITING_PLAYERS).stream()
                 .filter(g -> g.getPlayers().size() < gameConfig.getNumberOfPlayers())
-                .min(comparing(Game::getCreatedAt)).orElse(new Game());
+                .min(comparing(Game::getCreatedAt)).orElse(new Game(getRandomNumber()));
         game.getPlayers().add(player);
+        notifyNewPlayer(game);
         if (game.getPlayers().stream().filter(p -> p.getStatus().equals(WAITING)).count() == gameConfig.getNumberOfPlayers())
-            game.startGame(getRandomNumber());
+            game.startGame();
         game = gameRepository.save(game);
+        messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, player.getId()),
+                new GameMessageDTO(SUBSCRIBED, game.getId()));
         if (game.getStatus().equals(RUNNING))
             notifyGameStartedForPlayers(game);
-        else
-            notifyNewPlayer(game);
     }
 
     public void executeMove(MoveDTO moveDTO) {
         var game = gameRepository.findById(moveDTO.getGameId()).orElseThrow();
-        game.executeMove(moveDTO, gameConfig.getDivisor(), gameConfig.getWinningNumber());
-        gameRepository.save(game);
-        notifyGameMove(game);
+        var player = playerRepository.findById(moveDTO.getPlayerId()).orElseThrow();
+        var move = game.executeMove(moveDTO, gameConfig.getDivisor(), gameConfig.getWinningNumber());
+        game = gameRepository.save(game);
+        notifyPlayerMove(game, player, move);
+        switch (game.getStatus()) {
+            case RUNNING:
+                notifyNextGameTurn(game, move.getCurrentNumber());
+                break;
+            case FINISHED:
+                notifyGameEnd(game, move.getCurrentNumber());
+                break;
+        }
+    }
+
+    public void disconnectPlayer(String playerId, String gameId) {
+        var player = playerRepository.findById(playerId).orElseThrow();
+        player.setStatus(DISCONNECTED);
+        playerRepository.save(player);
+        var game = gameRepository.findById(gameId).orElseThrow();
+        if (!game.getStatus().equals(GameStatus.DISCONNECTED)) {
+            game.disconnectGame();
+            gameRepository.save(game);
+            notifyGameDisconnect(game, player);
+        }
     }
 
     private void notifyGameStartedForPlayers(Game game) {
-        final var starterPlayer = game.getFirstPlayer();
-        messagingTemplate.convertAndSend(
-                format("%s/%s", START_GAME_SUBSCRIBE_PATH, starterPlayer.getId()),
-                "Game started! \n it's your turn");
+        var starterPlayer = game.getFirstPlayer();
+        messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, starterPlayer.getId()),
+                new GameMessageDTO(TURN, game.getId(),"Game started, it's your turn", game.getInitialNumber()));
+        var gameMessageDTO = new GameMessageDTO(WAIT,
+                game.getId(), format("Game started, it's %s turn", starterPlayer.getName()), game.getInitialNumber());
         game.getPlayers()
                 .stream()
-                .filter(player -> !player.getId().equals(starterPlayer.getId())
-                        && player.getStatus().equals(PLAYING))
-                .forEach(currentPlayer -> messagingTemplate.convertAndSend(
-                        format("%s/%s", WAIT_SUBSCRIBE_PATH, currentPlayer.getId()),
-                        format("Game started! \n it's %s turn", starterPlayer.getName())));
+                .filter(player -> !player.getId().equals(starterPlayer.getId()) && player.getStatus().equals(PLAYING))
+                .forEach(currentPlayer -> messagingTemplate
+                        .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
     }
 
     private void notifyNewPlayer(Game game) {
-        final var newPlayer  = game.getLastPlayer();
-        messagingTemplate.convertAndSend(
-                format("%s/%s", WAIT_SUBSCRIBE_PATH, newPlayer.getId()),
-                "Waiting for players...");
+        var newPlayer = game.getLastPlayer();
+        if (!game.getStatus().equals(RUNNING))
+            messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, newPlayer.getId()),
+                    new GameMessageDTO(WAIT, game.getId(),"Waiting for players..."));
+        var gameMessageDTO = new GameMessageDTO(WAIT, game.getId(), format("%s joined the game", newPlayer.getName()));
         game.getPlayers()
                 .stream()
                 .filter(player -> !player.getId().equals(newPlayer.getId())
                         && player.getStatus().equals(WAITING))
-                .forEach(currentPlayer -> messagingTemplate.convertAndSend(
-                        format("%s/%s", WAIT_SUBSCRIBE_PATH, currentPlayer.getId()),
-                        format("Player %s joined", newPlayer.getName())));
+                .forEach(currentPlayer -> messagingTemplate
+                        .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
     }
 
-    private void notifyGameMove(Game game) {
-        switch (game.getStatus()) {
-            case RUNNING:
-                var nextPlayer = game.getNextPlayer();
-                messagingTemplate.convertAndSend(
-                        format("%s/%s", ROUND_SUBSCRIBE_PATH, nextPlayer.getId()),
-                        "It's your turn!");
-                game.getPlayers()
-                        .stream()
-                        .filter(player -> !player.getId().equals(nextPlayer.getId()) && player.getStatus().equals(PLAYING))
-                        .forEach(currentPlayer -> messagingTemplate.convertAndSend(
-                                format("%s/%s", WAIT_SUBSCRIBE_PATH, currentPlayer.getId()),
-                                format("it's %s turn", nextPlayer.getName())));
-                break;
-            case FINISHED:
-                final var winnerPlayer = game.getWinnerPlayer();
-                messagingTemplate.convertAndSend(
-                        format("%s/%s", WIN_SUBSCRIBE_PATH, winnerPlayer.getId()),
-                        "Congratulations you won the game!");
-                game.getPlayers()
-                        .stream()
-                        .filter(player -> !player.getId().equals(winnerPlayer.getId()) && player.getStatus().equals(FINISHED))
-                        .forEach(currentPlayer -> messagingTemplate.convertAndSend(
-                                format("%s/%s", LOSE_SUBSCRIBE_PATH, currentPlayer.getId()),
-                                format("Player %s won the game!", winnerPlayer.getName())));
-                break;
+    private void notifyPlayerMove(Game game, Player currentPlayer, Move move) {
+        game.getPlayers()
+                .stream()
+                .filter(player -> !player.getStatus().equals(DISCONNECTED))
+                .forEach(player -> messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, player.getId()),
+                        new GameMessageDTO(WAIT, game.getId(),
+                                format("%s performed a %s move on number %s, now the current number is %s",
+                                        player.getId().equals(currentPlayer.getId()) ? "You" :
+                                                currentPlayer.getName(), move.getCommand(),
+                                        move.getPreviousNumber(), move.getCurrentNumber())
+                        ))
+                );
+    }
+
+    private void notifyNextGameTurn(Game game, Integer currentNumber) {
+        var nextPlayer = game.getNextPlayer();
+        messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, nextPlayer.getId()),
+                new GameMessageDTO(TURN, game.getId(), "It's your turn!", currentNumber));
+        var gameMessageDTO =
+                new GameMessageDTO(WAIT, game.getId(), format("It's %s turn", nextPlayer.getName()), currentNumber);
+        game.getPlayers()
+                .stream()
+                .filter(player -> !player.getId().equals(nextPlayer.getId()) && player.getStatus().equals(PLAYING))
+                .forEach(currentPlayer -> messagingTemplate
+                        .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
+    }
+
+    private void notifyGameEnd(Game game, Integer currentNumber) {
+        var winnerPlayer = game.getWinnerPlayer();
+        if (winnerPlayer.isPresent()) {
+            messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, winnerPlayer.get().getId()),
+                    new GameMessageDTO(WON, game.getId(), "Congratulations you won the game!", currentNumber));
+            var gameMessageDTO = new GameMessageDTO(LOST,
+                    game.getId(), format("%s won the game!", winnerPlayer.get().getName()), currentNumber);
+            game.getPlayers()
+                    .stream()
+                    .filter(player -> !player.getId().equals(winnerPlayer.get().getId()) && player.getStatus().equals(FINISHED))
+                    .forEach(currentPlayer -> messagingTemplate
+                            .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
+        } else {
+            var gameMessageDTO = new GameMessageDTO(DRAW, game.getId(),
+                    format("Game ended in a draw, the current number is below %s!", gameConfig.getWinningNumber()), currentNumber);
+            game.getPlayers()
+                    .stream()
+                    .filter(player -> player.getStatus().equals(FINISHED))
+                    .forEach(currentPlayer -> messagingTemplate
+                            .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
         }
+    }
+
+    private void notifyGameDisconnect(Game game, Player disconnectedPlayer) {
+        var gameMessageDTO = new GameMessageDTO(PLAYER_DISCONNECTED, game.getId(),
+                format("%s disconnected from the game!", disconnectedPlayer.getName()));
+        game.getPlayers()
+                .stream()
+                .filter(player -> !player.getId().equals(disconnectedPlayer.getId()))
+                .forEach(currentPlayer -> messagingTemplate
+                        .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
     }
 
     private Integer getRandomNumber() {

@@ -1,7 +1,7 @@
 package net.feliperocha.gameofthree.domain;
 
 public enum MoveCommand {
-    ADDITION,
+    ADD,
     MAINTAIN,
-    SUBTRACTION
+    SUBTRACT
 }

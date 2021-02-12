@@ -9,16 +9,19 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static java.util.Comparator.comparing;
+import static java.util.Optional.empty;
 import static java.util.stream.Collectors.toList;
-import static net.feliperocha.gameofthree.domain.GameStatus.RUNNING;
-import static net.feliperocha.gameofthree.domain.GameStatus.WAITING_PLAYER;
+import static net.feliperocha.gameofthree.domain.GameStatus.*;
 import static net.feliperocha.gameofthree.domain.PlayerStatus.*;
+import static net.feliperocha.gameofthree.domain.PlayerStatus.FINISHED;
 
 @Getter
 @Setter
 public class Game {
-    public Game() {
-        this.status = WAITING_PLAYER;
+    public Game(Integer initialNumber) {
+        this.initialNumber = initialNumber;
+        this.status = WAITING_PLAYERS;
+        this.winnerPlayerId = empty();
         this.players = new ArrayList<>();
         this.moves = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
@@ -34,37 +37,39 @@ public class Game {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public void startGame(Integer initialNumber) {
+    public void startGame() {
         this.players = this.getPlayers().stream().peek(p -> {
             if (p.getStatus().equals(WAITING))
                 p.setStatus(PLAYING);
         }).collect(toList());
-        this.initialNumber = initialNumber;
         this.status = RUNNING;
     }
 
-    public void executeMove(MoveDTO moveDTO, Integer divisor, Integer winningNumber) {
-        var move = this.getMoves().isEmpty() ? new Move(moveDTO.getCommand(), moveDTO.getPlayerId(), this.initialNumber) :
+    public Move executeMove(MoveDTO moveDTO, Integer divisor, Integer winningNumber) {
+        var move = this.getMoves().isEmpty() ?
+                new Move(moveDTO.getCommand(), moveDTO.getPlayerId(), this.initialNumber) :
                 new Move(moveDTO.getCommand(), moveDTO.getPlayerId(), this.getMoves()
                         .stream()
                         .max(comparing(Move::getCreatedAt))
                         .map(Move::getCurrentNumber).orElse(this.initialNumber));
         move.calculateCurrentNumber(divisor);
         this.moves.add(move);
-        if (move.getCurrentNumber().equals(winningNumber)) {
-            this.winnerPlayerId = Optional.of(move.getPlayerId());
+        if (move.getCurrentNumber() <= winningNumber) {
+            if (move.getCurrentNumber().equals(winningNumber))
+                this.winnerPlayerId = Optional.of(move.getPlayerId());
             this.setStatus(GameStatus.FINISHED);
             this.getPlayers()
                     .stream()
                     .filter(currentPlayer -> currentPlayer.getStatus().equals(PLAYING))
                     .forEach(currentPlayer -> currentPlayer.setStatus(FINISHED));
         }
+        return move;
     }
 
     public Player getFirstPlayer() {
         return this.getPlayers()
                 .stream()
-                .filter(player -> !player.getStatus().equals(DISCONNECTED))
+                .filter(player -> !player.getStatus().equals(PlayerStatus.DISCONNECTED))
                 .min(comparing(Player::getCreatedAt))
                 .orElseThrow();
     }
@@ -72,13 +77,13 @@ public class Game {
     public Player getLastPlayer() {
         return this.getPlayers()
                 .stream()
-                .filter(player -> !player.getStatus().equals(DISCONNECTED))
+                .filter(player -> !player.getStatus().equals(PlayerStatus.DISCONNECTED))
                 .max(comparing(Player::getCreatedAt))
                 .orElseThrow();
     }
 
     public Player getNextPlayer() {
-        final var lastMovePlayer = this.getMoves()
+        var lastMovePlayer = this.getMoves()
                 .stream()
                 .max(comparing(Move::getCreatedAt))
                 .map(Move::getPlayerId).flatMap(playerId -> this.getPlayers()
@@ -97,10 +102,14 @@ public class Game {
         );
     }
 
-    public Player getWinnerPlayer() {
-        return this.getPlayers()
-                .stream()
-                .filter(player -> player.getId().equals(this.winnerPlayerId.orElseThrow()))
-                .findFirst().orElseThrow();
+    public void disconnectGame() {
+        this.setStatus(GameStatus.DISCONNECTED);
+        this.getPlayers().forEach(currentPlayer -> currentPlayer.setStatus(PlayerStatus.DISCONNECTED));
+    }
+
+    public Optional<Player> getWinnerPlayer() {
+        if (this.winnerPlayerId.isEmpty())
+            return empty();
+        return this.getPlayers().stream().filter(player -> player.getId().equals(this.winnerPlayerId.get())).findFirst();
     }
 }

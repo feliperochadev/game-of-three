@@ -1,7 +1,8 @@
 package net.feliperocha.gameofthree.domain;
 
 public enum GameStatus {
-    WAITING_PLAYER,
+    WAITING_PLAYERS,
     RUNNING,
+    DISCONNECTED,
     FINISHED
 }

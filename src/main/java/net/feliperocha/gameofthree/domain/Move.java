@@ -28,13 +28,13 @@ public class Move {
 
     public void calculateCurrentNumber(Integer divisor) {
         switch (this.command) {
-            case ADDITION:
+            case ADD:
                 this.currentNumber = (this.previousNumber + 1) / divisor;
                 break;
             case MAINTAIN:
                 this.currentNumber = this.previousNumber / divisor;
                 break;
-            case SUBTRACTION:
+            case SUBTRACT:
                 this.currentNumber = (this.previousNumber - 1) / divisor;
                 break;
         }
