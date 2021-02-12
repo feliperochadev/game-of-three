@@ -1,10 +1,11 @@
+server:
+  port: 8000
 spring:
   data:
     mongodb:
-      uri: ${DATABASE_URL}
+      uri: ${DATABASE_URL:mongodb://localhost:27017/game-of-three}
 
 game-of-three:
   divisor: ${DIVISOR:3}
   winning-number: ${WINNING_NUMBER:1}
   number-of-players: ${NUMBER_OF_PLAYERS:2}
-  max-random-number: ${MAX_RANDOM_NUMBER:100}

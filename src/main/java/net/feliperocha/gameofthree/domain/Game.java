@@ -18,8 +18,7 @@ import static net.feliperocha.gameofthree.domain.PlayerStatus.FINISHED;
 @Getter
 @Setter
 public class Game {
-    public Game(Integer initialNumber) {
-        this.initialNumber = initialNumber;
+    public Game() {
         this.status = WAITING_PLAYERS;
         this.winnerPlayerId = empty();
         this.players = new ArrayList<>();
@@ -82,18 +81,10 @@ public class Game {
                 .orElseThrow();
     }
 
-    public Player getNextPlayer() {
-        var lastMovePlayer = this.getMoves()
-                .stream()
-                .max(comparing(Move::getCreatedAt))
-                .map(Move::getPlayerId).flatMap(playerId -> this.getPlayers()
-                        .stream()
-                        .filter(player -> player.getId().equals(playerId))
-                        .findFirst()
-                ).orElseThrow();
+    public Player getNextPlayer(Player player) {
         var nextPlayer = this.getPlayers()
                 .stream()
-                .filter(currentPlayer -> currentPlayer.getCreatedAt().isAfter(lastMovePlayer.getCreatedAt()) &&
+                .filter(currentPlayer -> currentPlayer.getCreatedAt().isAfter(player.getCreatedAt()) &&
                         currentPlayer.getStatus().equals(PLAYING))
                 .min(comparing(Player::getCreatedAt));
         return nextPlayer.orElseGet(() -> this.getPlayers().stream()

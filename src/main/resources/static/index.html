@@ -5,8 +5,8 @@
     <title>Game of three</title>
     <link href="lib/bootstrap.min.css" rel="stylesheet">
     <link href="assets/main.css" rel="stylesheet">
-    <script src="assets/app.js"></script>
     <script src="lib/stomp.min.js"></script>
+    <script src="assets/app.js"></script>
 </head>
 <header>
     <noscript><h2 style="color: #ff0000">Your browser doesn't support Javascript!
@@ -15,12 +15,9 @@
 </header>
 <body>
 <div id="main-content" class="container">
-    <div class="row">
-        <button id="disconnect" class="btn btn-danger" type="button" onclick="disconnect()">Disconnect</button>
-    </div>
     <div class="row" id="connect-container">
-        <div class="col-md-6">
-            <form action="javascript:connect()">
+        <div class="col-md-12">
+            <form action="javascript:connect()" id="connect-form">
                 <div class="form-group">
                     <label for="name">Name:</label>
                     <input class="form-control" name="name" id="name" type="text" required/>
@@ -33,27 +30,43 @@
                     <button id="connect" class="btn btn-success" type="submit">Connect</button>
                 </div>
             </form>
+            <button id="play-again-btn" class="hide btn btn-success" type="button" onclick="connect()">Play Again</button>
+        </div>
+    </div>
+    <div class="row hide" id="initial-number-container">
+        <div class="col-md-12">
+            <form action="javascript:startGame()" id="initial-number-from">
+                <div class="form-group">
+                    <label for="name">Initial Number:</label>
+                    <input class="form-control" name="name" id="initial-number" type="text" required/>
+                </div>
+                <div class="form-group">
+                    <button id="initial-number-btn" class="btn btn-success" type="submit">Start</button>
+                </div>
+            </form>
         </div>
     </div>
     <div class="row hide" id="play-container">
-        <div class="col-md-6">
-            <form action="javascript:connect()">
+        <div class="col-md-12">
+            <strong class="hide" id="play-automatically-text">You're planning automatically</strong>
+            <form action="javascript:executeMove()" class="hide" id="play-form">
                 <div class="form-group">
-                    <label for="move">Select your move:</label>
-                    <select class="form-control" name="move" id="move">
-                        <option value="ADDITION">Addition</option>
+                    <label for="move-select">Select your move:</label>
+                    <select class="form-control" name="move" id="move-select" disabled>
+                        <option value="ADD">Add</option>
                         <option value="MAINTAIN">Maintain</option>
-                        <option value="SUBTRACTION">Subtraction</option>
+                        <option value="SUBTRACT">Subtract</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <button id="play" class="btn btn-info" type="submit">Play</button>
+                    <button id="play-btn" class="btn btn-info" type="submit" disabled>Play</button>
                 </div>
             </form>
         </div>
     </div>
     <div class="row hide" id="game-log-container">
         <div class="col-md-12">
+            <strong id="current-number" class="right-element"></strong>
             <table id="messages-table" class="table table-striped">
                 <thead>
                 <tr>
@@ -63,6 +76,7 @@
                 <tbody id="game-log">
                 </tbody>
             </table>
+            <button id="disconnect" class="btn btn-danger right-element" type="button" onclick="disconnect()">Disconnect</button>
         </div>
     </div>
 </div>

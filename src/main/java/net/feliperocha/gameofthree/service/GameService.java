@@ -5,12 +5,11 @@ import net.feliperocha.gameofthree.configuration.GameConfig;
 import net.feliperocha.gameofthree.listener.dto.GameMessageDTO;
 import net.feliperocha.gameofthree.listener.dto.MoveDTO;
 import net.feliperocha.gameofthree.domain.*;
+import net.feliperocha.gameofthree.listener.dto.StartGameDTO;
 import net.feliperocha.gameofthree.repository.GameRepository;
 import net.feliperocha.gameofthree.repository.PlayerRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.Random;
 
 import static java.lang.String.format;
 import static java.util.Comparator.comparing;
@@ -34,7 +33,7 @@ public class GameService {
         var player = playerRepository.findById(playerId).orElseThrow();
         var game = gameRepository.findByStatus(WAITING_PLAYERS).stream()
                 .filter(g -> g.getPlayers().size() < gameConfig.getNumberOfPlayers())
-                .min(comparing(Game::getCreatedAt)).orElse(new Game(getRandomNumber()));
+                .min(comparing(Game::getCreatedAt)).orElse(new Game());
         game.getPlayers().add(player);
         notifyNewPlayer(game);
         if (game.getPlayers().stream().filter(p -> p.getStatus().equals(WAITING)).count() == gameConfig.getNumberOfPlayers())
@@ -46,6 +45,15 @@ public class GameService {
             notifyGameStartedForPlayers(game);
     }
 
+    public void start(StartGameDTO startGameDTO) {
+        var player = playerRepository.findById(startGameDTO.getPlayerId()).orElseThrow();
+        var game = gameRepository.findById(startGameDTO.getGameId()).orElseThrow();
+        game.setInitialNumber(startGameDTO.getInitialNumber());
+        game = gameRepository.save(game);
+        notifyInitialNumber(game, player);
+        notifyNextGameTurn(game, player, game.getInitialNumber());
+    }
+
     public void executeMove(MoveDTO moveDTO) {
         var game = gameRepository.findById(moveDTO.getGameId()).orElseThrow();
         var player = playerRepository.findById(moveDTO.getPlayerId()).orElseThrow();
@@ -54,7 +62,7 @@ public class GameService {
         notifyPlayerMove(game, player, move);
         switch (game.getStatus()) {
             case RUNNING:
-                notifyNextGameTurn(game, move.getCurrentNumber());
+                notifyNextGameTurn(game, player, move.getCurrentNumber());
                 break;
             case FINISHED:
                 notifyGameEnd(game, move.getCurrentNumber());
@@ -77,9 +85,9 @@ public class GameService {
     private void notifyGameStartedForPlayers(Game game) {
         var starterPlayer = game.getFirstPlayer();
         messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, starterPlayer.getId()),
-                new GameMessageDTO(TURN, game.getId(),"Game started, it's your turn", game.getInitialNumber()));
+                new GameMessageDTO(START, game.getId(),"Game started, enter with a initial number"));
         var gameMessageDTO = new GameMessageDTO(WAIT,
-                game.getId(), format("Game started, it's %s turn", starterPlayer.getName()), game.getInitialNumber());
+                game.getId(), format("Game started, it's %s turn", starterPlayer.getName()));
         game.getPlayers()
                 .stream()
                 .filter(player -> !player.getId().equals(starterPlayer.getId()) && player.getStatus().equals(PLAYING))
@@ -108,22 +116,33 @@ public class GameService {
                 .forEach(player -> messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, player.getId()),
                         new GameMessageDTO(WAIT, game.getId(),
                                 format("%s performed a %s move on number %s, now the current number is %s",
-                                        player.getId().equals(currentPlayer.getId()) ? "You" :
-                                                currentPlayer.getName(), move.getCommand(),
-                                        move.getPreviousNumber(), move.getCurrentNumber())
+                                        player.getId().equals(currentPlayer.getId()) ? "You" : currentPlayer.getName(),
+                                        move.getCommand(), move.getPreviousNumber(), move.getCurrentNumber()),
+                                move.getCurrentNumber()
                         ))
                 );
     }
 
-    private void notifyNextGameTurn(Game game, Integer currentNumber) {
-        var nextPlayer = game.getNextPlayer();
+    private void notifyInitialNumber(Game game, Player currentPlayer) {
+        game.getPlayers()
+                .stream()
+                .filter(player -> !player.getStatus().equals(DISCONNECTED))
+                .forEach(player -> messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, player.getId()),
+                        new GameMessageDTO(WAIT, game.getId(), format("%s choose %s as initial number",
+                                player.getId().equals(currentPlayer.getId()) ? "You" : currentPlayer.getName(),
+                                game.getInitialNumber()), game.getInitialNumber())
+                ));
+    }
+
+    private void notifyNextGameTurn(Game game, Player player, Integer currentNumber) {
+        var nextPlayer = game.getNextPlayer(player);
         messagingTemplate.convertAndSend(format(PLAYER_SUBSCRIBE_PATH, nextPlayer.getId()),
                 new GameMessageDTO(TURN, game.getId(), "It's your turn!", currentNumber));
         var gameMessageDTO =
                 new GameMessageDTO(WAIT, game.getId(), format("It's %s turn", nextPlayer.getName()), currentNumber);
         game.getPlayers()
                 .stream()
-                .filter(player -> !player.getId().equals(nextPlayer.getId()) && player.getStatus().equals(PLAYING))
+                .filter(currentPlayer -> !player.getId().equals(nextPlayer.getId()) && player.getStatus().equals(PLAYING))
                 .forEach(currentPlayer -> messagingTemplate
                         .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
     }
@@ -159,9 +178,5 @@ public class GameService {
                 .filter(player -> !player.getId().equals(disconnectedPlayer.getId()))
                 .forEach(currentPlayer -> messagingTemplate
                         .convertAndSend(format(PLAYER_SUBSCRIBE_PATH, currentPlayer.getId()), gameMessageDTO));
-    }
-
-    private Integer getRandomNumber() {
-        return new Random().nextInt(gameConfig.getMaxRandomNumber()) + 1;
     }
 }

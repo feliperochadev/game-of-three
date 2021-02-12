@@ -4,7 +4,7 @@ body {
 
 #main-content {
     max-width: 940px;
-    padding: 2em 3em;
+    padding: 3em 3em;
     margin: 0 auto 20px;
     background-color: #fff;
     border: 1px solid #e5e5e5;
@@ -13,10 +13,9 @@ body {
     border-radius: 5px;
 }
 
-#disconnect {
-    display: none;
-    position: relative;
-    left: 80%;
+.right-element {
+    position: absolute;
+    right: 15px;
 }
 
 .hide {
