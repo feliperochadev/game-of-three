@@ -35,7 +35,6 @@ public class Game {
     private List<Move> moves;
     private List<Player> players;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
     public void startGame() {
         this.players = this.getPlayers().stream().peek(p -> {
