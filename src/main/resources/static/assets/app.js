@@ -1,6 +1,6 @@
-const WEB_SOCKET_END_POINT = window.location.port.trim() ?
-	`ws://${window.location.hostname}:${window.location.port}/connect` :
-	`ws://${window.location.hostname}/connect`;
+const HOST = window.location.hostname
+const WEB_SOCKET_END_POINT = HOST === "localhost" || HOST === "127.0.0.1" ?
+	`ws://${HOST}:${window.location.port}/connect` : `wss://${HOST}/connect`;
 const MOVE_COMMANDS = ['ADD', 'MAINTAIN', 'SUBTRACT']
 let WEB_SOCKET;
 
