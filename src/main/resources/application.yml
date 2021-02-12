@@ -3,7 +3,7 @@ server:
 spring:
   data:
     mongodb:
-      uri: ${DATABASE_URL:mongodb://localhost:27017/game-of-three}
+      uri: ${DATABASE_URL}
 
 game-of-three:
   divisor: ${DIVISOR:3}

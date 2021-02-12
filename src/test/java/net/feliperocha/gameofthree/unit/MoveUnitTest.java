@@ -3,15 +3,13 @@ package net.feliperocha.gameofthree.unit;
 import net.feliperocha.gameofthree.domain.Move;
 import net.feliperocha.gameofthree.domain.MoveCommand;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class MoveUnitTest {
-    @DisplayName("fkasdhjfdjshfjkdhskjfhksj")
-    @ParameterizedTest(name = "afasfaaaa ")
+    @ParameterizedTest
     @CsvSource({
             "ADD, 8, 3, 3",
             "MAINTAIN, 6, 3, 2",
