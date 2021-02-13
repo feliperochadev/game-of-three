@@ -28,7 +28,10 @@ const connectWebSocket = (newPlayer) => {
 		WEB_SOCKET.subscribe(`/queue/player/${newPlayer.id}`,
 			(message) => handleGameMessage(JSON.parse(message.body)));
 		connectGame(newPlayer);
-	}, (error) => console.error("STOMP error " + error));
+	}, (error) => {
+		console.error("STOMP error " + error);
+		disconnect();
+	});
 }
 
 const disconnect = () => {
