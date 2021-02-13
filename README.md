@@ -16,7 +16,6 @@ _obs: you can change the values for divisor winning number and number of players
   * MongoDB
 
 ## Environment Variables
-The following variables should be set before running:
 
 | Variable name | Default value |
 |---------------|---------------|
